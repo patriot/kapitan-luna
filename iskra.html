@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0f2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Капитан Звёздного Патруля</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&family=Russo+One&display=swap">
+<style>
+/* Layout: кабина звездолёта — статус-полоса, иллюминатор с кораблём и планетой, пульт из крупных кнопок-миссий */
+:root{
+  --void:#0c1230; --deep:#080c24; --hull:#18214d; --hull-2:#222d63; --hull-edge:#36438a; --shadow:#070b22;
+  --star:#f4f1ff; --muted:#a8b0e0; --signal:#ffb547; --signal-deep:#b8700c;
+  --plasma:#5fe3c9; --plasma-deep:#1d8f7b; --plasma-dim:#123b48; --alert:#ff7a86; --trail:#2c5a86;
+  --p-red:#e5484d; --p-green:#2f9e64; --p-blue:#3e63dd; --p-yellow:#f5c400;
+  --display:"Russo One","Arial Black",system-ui,sans-serif;
+  --body:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{min-height:100%}
+[hidden]{display:none!important}
+body{background:var(--void);color:var(--star);font-family:var(--body);font-size:18px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1;max-width:760px;margin:0 auto;padding-block:14px 28px;display:flex;flex-direction:column;gap:14px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--signal);outline-offset:3px}
+h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+.lead{margin:0;color:var(--muted);max-width:62ch}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.center{justify-content:center}
+
+/* статус-полоса */
+.status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--hull);border:2px solid var(--hull-edge);border-radius:18px;padding:10px 14px}
+.ship-id{display:flex;flex-direction:column;min-width:0;flex:1 1 auto}
+.call{font-family:var(--display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cap{font-family:var(--display);font-size:20px;overflow-wrap:anywhere}
+.energy{display:flex;gap:5px}
+.cell{width:16px;height:30px;border-radius:5px;background:var(--hull-2);border:2px solid var(--hull-edge)}
+.cell.on{background:linear-gradient(var(--plasma),var(--plasma-deep));border-color:var(--plasma);box-shadow:0 0 10px var(--plasma)}
+.hdr-btns{display:flex;gap:8px}
+.icon-btn{width:46px;height:46px;border-radius:12px;background:var(--hull-2);font-size:20px;flex:none}
+.cup{height:46px;padding:0 14px;border-radius:12px;background:var(--hull-2);font-family:var(--display);font-size:14px;letter-spacing:.08em;color:var(--signal)}
+.cup.live{background:var(--signal);color:var(--void)}
+
+/* радиограмма */
+.radiogram{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-radius:18px;background:var(--hull-2);border:2px dashed var(--signal)}
+.rg-pic{font-size:34px}
+.rg-text{flex:1 1 10em;min-width:0;font-weight:800}
+.rg-label{font-family:var(--display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--signal);font-weight:400}
+
+/* иллюминатор */
+.window{position:relative;height:clamp(190px,34vh,280px);border-radius:30px;overflow:hidden;
+  background:radial-gradient(ellipse at 30% 40%,var(--hull-2) 0%,var(--hull) 45%,var(--deep) 100%);
+  border:5px solid var(--hull-edge);box-shadow:inset 0 0 40px var(--shadow)}
+.ship{position:absolute;left:10%;top:50%;width:min(36%,180px);transform:translateY(-50%);animation:bob 3s ease-in-out infinite;padding:0}
+.ship svg{width:100%;height:auto;display:block}
+.flame{transform-box:fill-box;transform-origin:right center;animation:flick .16s infinite alternate}
+.ship.flying{animation:fly 2.7s ease-in forwards}
+.planet{position:absolute;right:8%;top:50%;width:min(28%,130px);max-width:100%;aspect-ratio:1;border-radius:50%;transform:translateY(-50%);
+  box-shadow:0 0 40px rgba(255,255,255,.12);transition:transform 2.6s ease-in}
+.window.warp .planet{transform:translateY(-50%) scale(1.9)}
+.route{position:absolute;left:16px;right:16px;bottom:10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.route b{color:var(--star);font-family:var(--display);font-weight:400}
+.fly{font-family:var(--display);font-size:21px;padding:16px;border-radius:18px;background:var(--signal);color:var(--void);box-shadow:0 6px 0 var(--signal-deep);animation:glow 1.3s infinite}
+.fly:disabled{background:var(--hull-2);color:var(--muted);box-shadow:none;animation:none;cursor:default}
+
+/* пульт миссий */
+.console{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.mission{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:20px;text-align:left;min-height:134px;
+  background:var(--hull);border:2px solid var(--hull-edge);box-shadow:0 6px 0 var(--shadow);transition:transform .08s,box-shadow .08s}
+.mission:active{transform:translateY(4px);box-shadow:0 2px 0 var(--shadow)}
+.mission .pic{font-size:40px;line-height:1}
+.mission .name{font-family:var(--display);font-size:18px;line-height:1.15}
+.mission .hint{font-size:14px;color:var(--muted)}
+.lamp{position:absolute;top:14px;right:14px;width:14px;height:14px;border-radius:50%;background:var(--hull-edge)}
+.mission.done .lamp{background:var(--plasma);box-shadow:0 0 12px var(--plasma)}
+.mission.locked{opacity:.5}
+.medals{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--muted)}
+.medal{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--hull);border:1px solid var(--hull-edge);color:var(--star);font-weight:700}
+.howto{font-size:14px;color:var(--muted);margin:0;max-width:62ch}
+
+/* экраны миссий */
+.screen{position:fixed;inset:0;z-index:20;background:var(--void);overflow-y:auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}
+.screen-inner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.screen-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.screen-head h2{font-size:24px}
+.screen-body{display:flex;flex-direction:column;gap:16px}
+.back{padding:10px 14px;border-radius:12px;background:var(--hull-2);font-weight:800}
+.btn{padding:14px 18px;border-radius:16px;font-weight:800;font-size:17px;background:var(--hull-2);border:2px solid var(--hull-edge);box-shadow:0 4px 0 var(--shadow)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.btn.primary{background:var(--signal);color:var(--void);border-color:var(--signal);box-shadow:0 4px 0 var(--signal-deep)}
+.btn.plasma{background:var(--plasma);color:var(--void);border-color:var(--plasma);box-shadow:0 4px 0 var(--plasma-deep)}
+.btn.danger{border-color:var(--alert);color:var(--alert)}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.card{background:var(--hull);border:2px solid var(--hull-edge);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h3{font-size:19px}
+
+/* проверка */
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{padding:10px 18px;border-radius:999px;background:var(--hull);border:2px solid var(--hull-edge);font-weight:800}
+.tab[aria-selected="true"]{background:var(--signal);color:var(--void);border-color:var(--signal)}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.check{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 10px;border-radius:20px;background:var(--hull);border:3px solid var(--hull-edge);text-align:center;font-weight:800;line-height:1.2}
+.check .pic{font-size:44px;line-height:1.1}
+.check .st{font-size:13px;font-weight:700;color:var(--muted)}
+.check.wait{border-color:var(--signal);animation:glow 1.4s infinite}
+.check.wait .st{color:var(--signal)}
+.check.ok{border-color:var(--plasma);background:var(--plasma-dim)}
+.check.ok .st{color:var(--plasma)}
+.timer{display:grid;justify-items:center;gap:12px;padding:20px;border-radius:24px;background:var(--hull);text-align:center}
+.ring{width:190px;max-width:100%;height:auto}
+.ring-num{font-family:var(--display);font-size:42px;font-variant-numeric:tabular-nums}
+
+/* приказ */
+.pads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pad{aspect-ratio:1.45;max-width:100%;border-radius:24px;display:grid;place-items:center;border:4px solid rgba(255,255,255,.18);box-shadow:0 8px 0 var(--shadow);transition:transform .08s,filter .15s}
+.pad:active{transform:translateY(5px);box-shadow:0 3px 0 var(--shadow)}
+.pad.flash{filter:brightness(1.55)}
+.pad svg{width:42%;height:auto}
+.pad svg *{fill:var(--star)}
+.pad.yellow svg *{fill:var(--void)}
+.adult{font-size:15px;color:var(--muted)}
+.adult summary{cursor:pointer;font-weight:700}
+
+/* навигация */
+.steps{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.step{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:14px;background:var(--hull);border:3px solid var(--hull-edge);min-width:72px}
+.step .arr{font-size:30px;line-height:1.1}
+.step .dots{letter-spacing:2px;color:var(--signal);font-size:13px}
+.step .num{font-family:var(--display);font-size:18px}
+.step.cur{border-color:var(--signal)}
+.step.done{opacity:.4}
+.navgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:min(100%,420px);max-width:100%;aspect-ratio:1;margin:0 auto;padding:6px;background:var(--hull);border-radius:16px}
+.cellg{border-radius:7px;background:var(--hull-2);display:grid;place-items:center;font-size:clamp(16px,5vw,28px);line-height:1}
+.cellg.trail{background:var(--trail)}
+.arrows{display:grid;grid-template-columns:repeat(3,68px);grid-auto-rows:68px;gap:8px;justify-content:center}
+.arrow{border-radius:18px;background:var(--hull-2);border:2px solid var(--hull-edge);font-size:30px;box-shadow:0 4px 0 var(--shadow)}
+.arrow:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+
+/* радиосвязь */
+.exercise{display:flex;gap:16px;align-items:center;padding:18px;border-radius:22px;background:var(--hull);flex-wrap:wrap}
+.exercise .pic{font-size:64px;line-height:1}
+.exercise > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.exercise h3{font-size:24px}
+.count-dots{display:flex;gap:10px;justify-content:center}
+.cd{width:26px;height:26px;border-radius:50%;background:var(--hull-2);border:2px solid var(--hull-edge)}
+.cd.on{background:var(--signal);border-color:var(--signal)}
+.callsign{font-family:var(--display);font-size:clamp(24px,6vw,36px);line-height:1.25;padding:22px;border-radius:22px;background:var(--hull);text-align:center;text-wrap:balance}
+.callsign em{font-style:normal;color:var(--signal)}
+
+/* ЦУП */
+.field{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--muted);font-weight:700}
+.field input{font:inherit;font-weight:700;color:var(--star);background:var(--hull-2);border:2px solid var(--hull-edge);border-radius:12px;padding:10px 12px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:999px;background:var(--hull-2);border:2px solid var(--hull-edge);font-size:15px;font-weight:800;color:var(--star)}
+.chip[aria-pressed="true"]{background:var(--signal);color:var(--void);border-color:var(--signal)}
+.note{margin:0;font-size:14px;color:var(--signal)}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.log li{display:flex;gap:10px}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums;min-width:3.2em}
+
+/* посадка и победа */
+.arrival{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding-block:10px}
+.big-planet{width:min(60vw,220px);max-width:100%;aspect-ratio:1;border-radius:50%;box-shadow:0 0 60px rgba(255,255,255,.18);animation:pop .7s ease-out}
+.arrival h3{font-size:28px}
+.medal.big{font-size:18px;padding:10px 18px;border-color:var(--signal)}
+.win-star{font-size:90px;line-height:1;animation:pop .6s ease-out}
+
+/* окно взрослого и подсказки */
+.modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(5,8,25,.82);padding:16px}
+.modal-box{background:var(--hull);border:2px solid var(--hull-edge);border-radius:22px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px}
+.modal-box h3{font-size:20px}
+.gate-q{font-family:var(--display);font-size:34px;text-align:center}
+.gate-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:var(--plasma);color:var(--void);
+  font-weight:800;padding:12px 20px;border-radius:999px;box-shadow:0 6px 20px var(--shadow);max-width:calc(100% - 32px);text-align:center}
+
+@keyframes bob{0%,100%{transform:translateY(-50%)}50%{transform:translateY(calc(-50% - 9px))}}
+@keyframes flick{from{transform:scaleX(.75)}to{transform:scaleX(1.15)}}
+@keyframes fly{0%{transform:translate(0,-50%)}25%{transform:translate(-12%,-50%)}100%{transform:translate(430%,-50%)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,181,71,.55)}50%{box-shadow:0 0 0 8px rgba(255,181,71,0)}}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@media (max-width:380px){.console{grid-template-columns:1fr}.mission{min-height:0}.arrows{grid-template-columns:repeat(3,60px);grid-auto-rows:60px}}
+@media (max-width:520px){.energy{order:3;flex-basis:100%}.energy .cell{flex:1;height:22px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="stars" aria-hidden="true"></canvas>
+<div class="app">
+  <header class="status">
+    <div class="ship-id"><span class="call">Звездолёт «Искра»</span><span class="cap" id="capName">Капитан</span></div>
+    <div class="energy" id="energy" role="img" aria-label="Энергия"></div>
+    <div class="hdr-btns">
+      <button class="icon-btn" id="soundBtn" aria-label="Звук">🔊</button>
+      <button class="cup" id="cupBtn">ЦУП</button>
+    </div>
+  </header>
+
+  <div class="radiogram" id="radiogram" hidden></div>
+
+  <section class="window" aria-label="Иллюминатор">
+    <button class="ship" id="ship" aria-label="Звездолёт Искра: узнать, что делать">
+      <svg viewBox="0 0 200 100" aria-hidden="true">
+        <g class="flame"><path d="M42 36 L2 50 L42 64 Z" fill="#ffb547"/><path d="M42 43 L18 50 L42 57 Z" fill="#fff3c4"/></g>
+        <path d="M52 30 L32 8 H70 L88 30 Z" fill="#ff7a86"/>
+        <path d="M52 70 L32 92 H70 L88 70 Z" fill="#ff7a86"/>
+        <path d="M40 30 H130 Q176 30 194 50 Q176 70 130 70 H40 Z" fill="#e9ecff"/>
+        <rect x="40" y="46" width="112" height="8" fill="#ff7a86"/>
+        <circle cx="142" cy="50" r="11" fill="#5fe3c9" stroke="#36438a" stroke-width="4"/>
+      </svg>
+    </button>
+    <div class="planet" id="planet"></div>
+    <div class="route"><span>Курс: <b id="planetName"></b></span><span id="planetDist"></span></div>
+  </section>
+  <button class="fly" id="flyBtn" hidden>Двигатели заряжены! Летим!</button>
+
+  <section class="console" aria-label="Пульт миссий">
+    <button class="mission" data-mission="check"><span class="lamp"></span><span class="pic">🧰</span><span class="name">Проверка корабля</span><span class="hint">Утренние и вечерние дела</span></button>
+    <button class="mission" data-mission="order"><span class="lamp"></span><span class="pic">📡</span><span class="name">Приказ из ЦУП</span><span class="hint">Слушай и запоминай</span></button>
+    <button class="mission" data-mission="nav"><span class="lamp"></span><span class="pic">🧭</span><span class="name">Навигация</span><span class="hint">Курс по клеточкам</span></button>
+    <button class="mission" data-mission="radio"><span class="lamp"></span><span class="pic">🎙️</span><span class="name">Радиосвязь</span><span class="hint">Разминка и позывной</span></button>
+  </section>
+  <div class="medals" id="medals"></div>
+  <p class="howto">Как играть: настоящие дела дают энергию, полная батарея открывает полёт к новой планете и медаль. Взрослым нужна кнопка «ЦУП»: в ней имя капитана, звук от логопеда и радиограммы с поручениями.</p>
+</div>
+
+<div class="screen" id="screen" hidden>
+  <div class="screen-inner">
+    <div class="screen-head"><button class="back" id="backBtn">← На мостик</button><h2 id="screenTitle"></h2></div>
+    <div class="screen-body" id="screenBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="modal-box">
+    <h3 id="gateTitle">Связь с ЦУП</h3>
+    <p class="lead" id="gateMsg">Вопрос для взрослых.</p>
+    <div class="gate-q" id="gateQ"></div>
+    <div class="gate-opts" id="gateOpts"></div>
+    <button class="btn" id="gateCancel">Отмена</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const KEY = 'iskra-v1', ENERGY_MAX = 6, LOCKABLE = ['order', 'nav'];
+const PLANETS = [
+  {name:'Луна-Кроха', c:['#e4e1f2','#7f7ca0'], medal:'Первый полёт', fact:'Здесь живут лунные зайчики. Они очень любят порядок в своих норках.'},
+  {name:'Мармеладия', c:['#ffb3d4','#c2417a'], medal:'Сладкий курс', fact:'Тут текут реки из компота, а жители всегда говорят «спасибо».'},
+  {name:'Кристаллон', c:['#9ff3ff','#2b7fbf'], medal:'Кристальная точность', fact:'Кристаллы на этой планете светятся, когда кто-то помогает другу.'},
+  {name:'Облакия', c:['#ffffff','#8fa8dc'], medal:'Мастер порядка', fact:'Облака здесь мягкие, как подушка. Все жители ложатся спать вовремя.'},
+  {name:'Вулканус', c:['#ffbd80','#c2361d'], medal:'Огненный экипаж', fact:'Вулканы тут пыхтят, а жители умеют успокаиваться: глубокий вдох и долгий выдох.'},
+  {name:'Зеленика', c:['#c3f58a','#3c8f3a'], medal:'Друг природы', fact:'Это планета-сад. Каждое утро жители поливают цветы.'},
+  {name:'Сатурнелла', c:['#ffe7a3','#c9902c'], medal:'Звёздный капитан', fact:'Кольца у неё из звёздной пыли. Сюда долетают только самые дружные экипажи!'}
+];
+const MORNING = [['🪥','Почистить зубы'],['💦','Умыться'],['🛏️','Заправить кровать'],['👕','Одеться'],['🥣','Позавтракать']];
+const EVENING = [['🧸','Убрать игрушки'],['🎒','Приготовить одежду на завтра'],['🛁','Помыться'],['🪥','Почистить зубы'],['📖','Сказка и сон']];
+const RADIO_PRESETS = [['🍽️','Отнеси тарелку на кухню'],['🧸','Собери игрушки в коробку'],['🥄','Помоги накрыть на стол'],['👟','Поставь обувь на место'],['🌱','Полей цветок'],['💌','Нарисуй открытку бабушке']];
+
+const today = () => new Date().toLocaleDateString('ru-RU');
+const fresh = () => ({v:1, name:'', sound:'Р', level:1, mute:false, energy:3, planet:0, medals:[], day:today(),
+  flights:0, extra:0, checks:{m:{}, e:{}}, rewarded:{}, done:{}, orderLvl:2,
+  radio:{pic:'🍽️', text:'Отнеси тарелку на кухню', status:'new'}, log:[]});
+let state;
+function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1) return s; } catch(e){} return null; }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+function newDay(){
+  if (state.day === today()) return;
+  Object.assign(state, {day:today(), flights:0, extra:0, checks:{m:{}, e:{}}, rewarded:{}, done:{}, log:[]});
+}
+function log(text){
+  const d = new Date(), t = d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+  state.log.unshift({t, text}); state.log = state.log.slice(0, 40); save();
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const capName = () => state.name ? 'Капитан ' + state.name : 'Капитан';
+const gamesLocked = () => state.flights >= 1 + state.extra;
+const planetBg = p => `radial-gradient(circle at 35% 30%, ${p.c[0]}, ${p.c[1]} 72%)`;
+
+/* звук */
+let ac;
+function tone(f, d = .15, type = 'sine', vol = .14){
+  if (state.mute) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + d);
+    o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + d);
+  } catch(e){}
+}
+const chime = () => [523,659,784,1047].forEach((f,i) => setTimeout(() => tone(f,.2,'triangle'), i*110));
+const buzz = () => tone(170, .3, 'sawtooth', .08);
+
+/* голос */
+let ruVoice = null;
+function pickVoice(){ try { ruVoice = speechSynthesis.getVoices().find(v => /^ru/i.test(v.lang)) || null; } catch(e){} }
+try { speechSynthesis.onvoiceschanged = pickVoice; pickVoice(); } catch(e){}
+function say(text, onend){
+  let fired = false; const fin = () => { if (!fired){ fired = true; onend && onend(); } };
+  if (state.mute || !('speechSynthesis' in window)){ if (onend) setTimeout(fin, 400 + text.length * 50); return; }
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice; u.rate = .92; u.pitch = 1.05;
+    u.onend = fin; u.onerror = fin;
+    speechSynthesis.speak(u);
+    if (onend) setTimeout(fin, 1800 + text.length * 95);
+  } catch(e){ if (onend) setTimeout(fin, 600); }
+}
+
+/* звёзды */
+const cv = $('#stars'), cx = cv.getContext('2d');
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let stars = [], warp = 1;
+function sizeStars(){
+  const d = devicePixelRatio || 1; cv.width = innerWidth * d; cv.height = innerHeight * d; cx.setTransform(d,0,0,d,0,0);
+  stars = Array.from({length: Math.round(innerWidth * innerHeight / 4500)}, () => ({x:Math.random()*innerWidth, y:Math.random()*innerHeight, z:Math.random()*.8+.2}));
+}
+function drawStars(){
+  cx.clearRect(0, 0, innerWidth, innerHeight);
+  for (const s of stars){
+    if (!still){ s.x -= s.z * .3 * warp; if (s.x < 0){ s.x = innerWidth; s.y = Math.random() * innerHeight; } }
+    cx.fillStyle = `rgba(244,241,255,${.3 + s.z * .6})`;
+    cx.fillRect(s.x, s.y, warp > 1 ? s.z * warp * 3 : s.z * 1.8, s.z * 1.8);
+  }
+  if (!still) requestAnimationFrame(drawStars);
+}
+
+/* подсказка */
+let toastT;
+function toast(t){ const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2600); }
+
+/* мостик */
+function renderBridge(){
+  $('#capName').textContent = capName();
+  $('#energy').innerHTML = Array.from({length:ENERGY_MAX}, (_,i) => `<span class="cell${i < state.energy ? ' on' : ''}"></span>`).join('');
+  $('#energy').setAttribute('aria-label', `Энергия ${state.energy} из ${ENERGY_MAX}`);
+  const p = PLANETS[state.planet % PLANETS.length];
+  $('#planet').style.background = planetBg(p);
+  $('#planetName').textContent = p.name;
+  const need = ENERGY_MAX - state.energy;
+  $('#planetDist').textContent = need > 0 ? `До старта нужно ещё ${need} ⚡` : 'Энергии хватает!';
+  const fb = $('#flyBtn');
+  fb.hidden = need > 0; fb.disabled = gamesLocked();
+  fb.textContent = gamesLocked() ? 'Энергия полная. Полёт завтра!' : 'Двигатели заряжены! Летим!';
+  document.querySelectorAll('.mission').forEach(b => {
+    const m = b.dataset.mission;
+    b.classList.toggle('done', !!state.done[m]);
+    b.classList.toggle('locked', LOCKABLE.includes(m) && gamesLocked());
+  });
+  const md = state.medals, shown = md.slice(-4);
+  $('#medals').innerHTML = md.length
+    ? '<span>Медали:</span>' + shown.map(m => `<span class="medal">🏅 ${esc(m)}</span>`).join('') + (md.length > 4 ? `<span>и ещё ${md.length - 4}</span>` : '')
+    : `<span>Первая медаль ждёт на планете ${PLANETS[0].name}</span>`;
+  renderRadio();
+  $('#soundBtn').textContent = state.mute ? '🔇' : '🔊';
+  $('#cupBtn').classList.toggle('live', isParent());
+  $('#cupBtn').textContent = isParent() ? 'ЦУП ✓' : 'ЦУП';
+}
+function renderRadio(){
+  const el = $('#radiogram'), r = state.radio;
+  el.hidden = !r; if (!r) return;
+  el.innerHTML = `<span class="rg-pic">${r.pic}</span>
+    <div class="rg-text"><div class="rg-label">Радиограмма от ЦУП</div><div>${esc(r.text)}</div></div>
+    <div class="row"><button class="icon-btn" data-rg="listen" aria-label="Прослушать радиограмму">🔊</button>
+    ${r.status === 'new' ? '<button class="btn plasma" data-rg="done">Выполнил!</button>' : '<button class="btn primary" data-rg="confirm">ЦУП, подтвердите</button>'}</div>`;
+}
+function addEnergy(n, why, phrase = ''){
+  const before = state.energy;
+  state.energy = Math.min(ENERGY_MAX, state.energy + n);
+  log(`${why}: +${n} ⚡`); renderBridge(); chime();
+  toast(state.energy > before ? `+${state.energy - before} ⚡ ${why}` : `Батарея уже полная · ${why}`);
+  const justFull = state.energy >= ENERGY_MAX && before < ENERGY_MAX;
+  say(phrase + (justFull ? (gamesLocked() ? ' Двигатели заряжены! Летим завтра.' : ' Двигатели заряжены! Можно лететь!') : ''));
+}
+
+/* вход для взрослых: пример на умножение */
+let parentUntil = 0, gateCb = null, gateAns = 0;
+const isParent = () => Date.now() < parentUntil;
+function requireParent(cb){
+  if (isParent()){ cb(); return; }
+  const a = 6 + Math.floor(Math.random() * 4), b = 3 + Math.floor(Math.random() * 7), ans = a * b;
+  const opts = new Set([ans]);
+  while (opts.size < 4){ const d = ans + (Math.floor(Math.random() * 9) - 4) * (Math.random() < .5 ? 1 : a); if (d > 0) opts.add(d); }
+  gateCb = cb; gateAns = ans;
+  $('#gateQ').textContent = `${a} × ${b} = ?`;
+  $('#gateMsg').textContent = 'Вопрос для взрослых: подтверждать дела может только ЦУП.';
+  $('#gateOpts').innerHTML = [...opts].sort(() => Math.random() - .5).map(v => `<button class="btn" data-v="${v}">${v}</button>`).join('');
+  $('#gate').hidden = false; $('#gateOpts button').focus();
+}
+$('#gateOpts').onclick = e => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  if (+b.dataset.v === gateAns){
+    parentUntil = Date.now() + 10 * 60e3; $('#gate').hidden = true; renderBridge();
+    const cb = gateCb; gateCb = null; cb && cb();
+  } else { $('#gateMsg').textContent = 'Неверно. Попробуйте ещё раз.'; buzz(); }
+};
+$('#gateCancel').onclick = () => { $('#gate').hidden = true; gateCb = null; };
+
+/* экраны */
+let cleanup = null;
+function openScreen(title, build){
+  closeScreen(true);
+  $('#screenTitle').textContent = title;
+  const body = $('#screenBody'); body.innerHTML = ''; body.onclick = null;
+  $('#screen').hidden = false; $('#screen').scrollTop = 0;
+  cleanup = build(body) || null;
+}
+function closeScreen(silent){
+  if (cleanup){ try { cleanup(); } catch(e){} cleanup = null; }
+  try { speechSynthesis.cancel(); } catch(e){}
+  $('#screen').hidden = true;
+  if (!silent) renderBridge();
+}
+$('#backBtn').onclick = () => closeScreen();
+function win(body, title, text = 'Миссия выполнена. Лампочка на пульте горит!'){
+  body.innerHTML = `<div class="arrival"><div class="win-star">⭐</div><h3>${title}</h3><p class="lead">${text}</p><button class="btn primary" data-act="home">На мостик</button></div>`;
+  body.onclick = e => { if (e.target.closest('[data-act=home]')) closeScreen(); };
+}
+
+/* 1. Проверка корабля */
+function openCheck(){
+  let tab = new Date().getHours() < 14 ? 'm' : 'e', timerId = null;
+  openScreen('Проверка корабля', body => {
+    const draw = () => {
+      const list = tab === 'm' ? MORNING : EVENING, st = state.checks[tab];
+      const wait = list.filter((_, i) => st[i] === 'wait').length, all = list.every((_, i) => st[i] === 'ok');
+      body.innerHTML = `<div class="tabs" role="tablist">
+          <button class="tab" role="tab" aria-selected="${tab === 'm'}" data-tab="m">☀️ Утро: предполётная проверка</button>
+          <button class="tab" role="tab" aria-selected="${tab === 'e'}" data-tab="e">🌙 Вечер: стыковка на ночь</button></div>
+        <p class="lead">Сделай дело по-настоящему и нажми на карточку. ЦУП проверит и включит отсек корабля.</p>
+        <div class="checks">${list.map(([p, n], i) => `<button class="check ${st[i] || ''}" data-i="${i}"><span class="pic">${p}</span>${n}
+          <span class="st">${st[i] === 'ok' ? 'Отсек включён' : st[i] === 'wait' ? 'Ждём ЦУП' : 'Нажми, когда сделаешь'}</span></button>`).join('')}</div>
+        <div class="row"><button class="btn primary" data-act="confirm" ${wait ? '' : 'disabled'}>ЦУП подтверждает${wait ? ` (${wait})` : ''}</button>
+          <button class="btn" data-act="teeth">⏱ Заправка двигателей: зубы 2 минуты</button></div>
+        ${all ? '<p class="lead">Все отсеки сияют! Корабль получил +2 ⚡</p>' : ''}`;
+    };
+    const teeth = () => {
+      let left = 120;
+      const cues = {90:'Теперь верхние зубки с другой стороны.', 60:'Половина пути! Чистим нижние зубки.', 30:'Последний отсек! Нижние зубки с другой стороны.'};
+      body.innerHTML = `<div class="timer">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" fill="none" style="stroke:var(--hull-2)" stroke-width="12"/>
+        <circle id="arc" cx="60" cy="60" r="52" fill="none" style="stroke:var(--plasma)" stroke-width="12" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0" transform="rotate(-90 60 60)"/></svg>
+        <div class="ring-num" id="tnum">2:00</div>
+        <p class="lead">Чисти зубы, пока заправляются двигатели. Голос подскажет, когда менять сторону.</p>
+        <button class="btn" data-act="stop">Стоп</button></div>`;
+      say('Заправка двигателей! Чистим верхние зубки.');
+      timerId = setInterval(() => {
+        left--;
+        $('#tnum').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        $('#arc').setAttribute('stroke-dashoffset', (326.7 * (1 - left / 120)).toFixed(1));
+        if (cues[left]){ tone(880, .12); say(cues[left]); }
+        if (left <= 0){ clearInterval(timerId); timerId = null; chime(); say('Двигатели заправлены! Зубки сияют!'); setTimeout(() => { if (!$('#screen').hidden) draw(); }, 2600); }
+      }, 1000);
+    };
+    body.onclick = e => {
+      const t = e.target.closest('[data-tab]'), c = e.target.closest('[data-i]'), act = e.target.closest('[data-act]')?.dataset.act;
+      const list = tab === 'm' ? MORNING : EVENING, st = state.checks[tab];
+      if (t){ tab = t.dataset.tab; draw(); return; }
+      if (c){
+        const i = +c.dataset.i, n = list[i][1];
+        if (st[i] === 'ok'){ say(n + '. Этот отсек уже включён.'); return; }
+        if (st[i] === 'wait'){ delete st[i]; } else { st[i] = 'wait'; tone(660, .1); say(n + '. Молодец! Ждём подтверждения ЦУП.'); }
+        save(); draw(); return;
+      }
+      if (act === 'confirm') requireParent(() => {
+        list.forEach((x, i) => { if (st[i] === 'wait'){ st[i] = 'ok'; log('Сделано: ' + x[1]); } });
+        if (list.every((_, i) => st[i] === 'ok') && !state.rewarded[tab]){
+          state.rewarded[tab] = true; state.done.check = true;
+          addEnergy(2, tab === 'm' ? 'утренняя проверка' : 'вечерняя стыковка', 'Все отсеки включены! Отличная работа, капитан!');
+        } else { save(); tone(784, .15, 'triangle'); say('Отсеки включены!'); }
+        draw();
+      });
+      if (act === 'teeth') teeth();
+      if (act === 'stop'){ clearInterval(timerId); timerId = null; draw(); }
+    };
+    draw();
+    return () => clearInterval(timerId);
+  });
+}
+
+/* 2. Приказ из ЦУП */
+const PADS = [
+  {id:'red', acc:'красную звезду', col:'var(--p-red)', f:392, svg:'<polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/>'},
+  {id:'green', acc:'зелёный круг', col:'var(--p-green)', f:494, svg:'<circle cx="50" cy="50" r="40"/>'},
+  {id:'blue', acc:'синий треугольник', col:'var(--p-blue)', f:587, svg:'<polygon points="50,8 94,90 6,90"/>'},
+  {id:'yellow', acc:'жёлтый квадрат', col:'var(--p-yellow)', f:698, svg:'<rect x="12" y="12" width="76" height="76" rx="6"/>'}
+];
+function orderPhrase(seq){
+  const n = seq.map(i => PADS[i].acc);
+  if (n.length === 2) return `Сначала нажми ${n[0]}, потом ${n[1]}.`;
+  if (n.length === 3) return `Сначала нажми ${n[0]}, потом ${n[1]}, а в конце ${n[2]}.`;
+  return `Сначала нажми ${n[0]}, потом ${n[1]}, потом ${n[2]}, а в конце ${n[3]}.`;
+}
+function openOrder(){
+  openScreen('Приказ из ЦУП', body => {
+    const ROUNDS = 3; let seq = [], input = [], wins = 0, repeats = 0, mistakes = 0, ready = false;
+    const newOrder = () => { seq = []; while (seq.length < state.orderLvl){ const i = Math.floor(Math.random() * 4); if (i !== seq[seq.length - 1]) seq.push(i); } input = []; repeats = 0; ready = false; };
+    body.innerHTML = `<p class="lead">Слушай внимательно! Приказ звучит один раз, повторить можно только однажды. Потом нажимай кнопки по порядку.</p>
+      <div class="row"><button class="btn primary" data-act="play">📡 Слушать приказ</button><button class="btn" data-act="again" disabled>Ещё раз</button><span class="lead" id="ordProg"></span></div>
+      <div class="pads">${PADS.map((p, i) => `<button class="pad ${p.id}" data-pad="${i}" style="background:${p.col}" aria-label="${p.acc}"><svg viewBox="0 0 100 100" aria-hidden="true">${p.svg}</svg></button>`).join('')}</div>
+      <details class="adult"><summary>Текст приказа для взрослых</summary><p id="ordText">Сначала нажмите «Слушать приказ».</p></details>`;
+    const prog = () => { $('#ordProg').textContent = `Приказ ${Math.min(wins + 1, ROUNDS)} из ${ROUNDS} · шагов: ${state.orderLvl}`; };
+    const speak = () => { input = []; ready = false; $('#ordText').textContent = orderPhrase(seq); say('Внимание, приказ! ' + orderPhrase(seq), () => { ready = true; }); };
+    newOrder(); prog();
+    body.onclick = e => {
+      const act = e.target.closest('[data-act]')?.dataset.act, pad = e.target.closest('[data-pad]');
+      if (act === 'play'){ speak(); $('[data-act=again]').disabled = repeats >= 1; return; }
+      if (act === 'again'){ repeats++; e.target.closest('button').disabled = true; speak(); return; }
+      if (act === 'home'){ closeScreen(); return; }
+      if (!pad) return;
+      const i = +pad.dataset.pad;
+      pad.classList.add('flash'); setTimeout(() => pad.classList.remove('flash'), 180); tone(PADS[i].f, .2, 'triangle');
+      if (!ready){ toast('Сначала дослушай приказ'); return; }
+      if (i !== seq[input.length]){
+        mistakes++; input = []; ready = false; repeats = 0; buzz();
+        say('Ой! Почти получилось. Послушай приказ ещё раз.', () => { $('[data-act=again]').disabled = true; });
+        return;
+      }
+      input.push(i);
+      if (input.length < seq.length) return;
+      wins++; ready = false;
+      if (wins < ROUNDS){ newOrder(); prog(); $('[data-act=again]').disabled = true; tone(988, .15, 'triangle'); say('Приказ выполнен! Жми «Слушать приказ», чтобы получить следующий.'); return; }
+      if (mistakes === 0) state.orderLvl = Math.min(4, state.orderLvl + 1);
+      else if (mistakes >= 3) state.orderLvl = Math.max(2, state.orderLvl - 1);
+      state.done.order = true;
+      win(body, 'Все приказы выполнены!', mistakes === 0 ? 'Ни одной ошибки! В следующий раз приказы будут длиннее.' : 'Ты внимательный капитан. Лампочка на пульте горит!');
+      addEnergy(1, 'приказы ЦУП', 'Все приказы выполнены! Ты внимательный капитан!');
+    };
+  });
+}
+
+/* 3. Навигация: графический диктант */
+const DIRS = {right:[1,0,'➡️','вправо'], left:[-1,0,'⬅️','влево'], up:[0,-1,'⬆️','вверх'], down:[0,1,'⬇️','вниз']};
+const CELLS = ['', 'одна клетка', 'две клетки', 'три клетки', 'четыре клетки'];
+const stepTxt = s => `${CELLS[s.n]} ${DIRS[s.d][3]}`;
+function openNav(){
+  openScreen('Навигация', body => {
+    const N = 7, ROUTES = 2, timers = [];
+    let route = 0, pos, target, steps, cur, cnt, trail;
+    const gen = () => {
+      const k = route === 0 ? 2 : 3;
+      for (let t = 0; t < 300; t++){
+        let x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+        const s = [x, y], st = []; let axis = Math.random() < .5 ? 'h' : 'v', ok = true;
+        for (let j = 0; j < k; j++){
+          const opts = [];
+          for (const d of axis === 'h' ? ['right','left'] : ['up','down'])
+            for (let n = 1; n <= 4; n++){ const nx = x + DIRS[d][0] * n, ny = y + DIRS[d][1] * n; if (nx >= 0 && nx < N && ny >= 0 && ny < N) opts.push([d, n]); }
+          if (!opts.length){ ok = false; break; }
+          const [d, n] = opts[Math.floor(Math.random() * opts.length)];
+          st.push({d, n}); x += DIRS[d][0] * n; y += DIRS[d][1] * n; axis = axis === 'h' ? 'v' : 'h';
+        }
+        if (ok && (x !== s[0] || y !== s[1])){ pos = s; target = [x, y]; steps = st; cur = 0; cnt = 0; trail = [s.join()]; return; }
+      }
+    };
+    const draw = () => {
+      body.innerHTML = `<p class="lead">Проложи курс к планете по стрелкам. Считай клетки вслух!</p>
+        <div class="steps">${steps.map((s, i) => `<div class="step ${i < cur ? 'done' : i === cur ? 'cur' : ''}"><span class="arr">${DIRS[s.d][2]}</span><span class="dots">${'●'.repeat(s.n)}</span><span class="num">${s.n}</span></div>`).join('')}</div>
+        <div class="navgrid" aria-label="Карта: ракета и планета">${Array.from({length: N * N}, (_, k) => {
+          const x = k % N, y = Math.floor(k / N), isP = x === pos[0] && y === pos[1], isT = x === target[0] && y === target[1];
+          return `<div class="cellg ${trail.includes(x + ',' + y) ? 'trail' : ''}">${isP ? '🚀' : isT ? '🪐' : ''}</div>`; }).join('')}</div>
+        <div class="arrows"><span></span><button class="arrow" data-d="up" aria-label="Вверх">⬆️</button><span></span>
+          <button class="arrow" data-d="left" aria-label="Влево">⬅️</button><button class="arrow" data-d="down" aria-label="Вниз">⬇️</button><button class="arrow" data-d="right" aria-label="Вправо">➡️</button></div>
+        <div class="row center"><button class="btn" data-act="hear">🔊 Повторить шаг</button><span class="lead">Маршрут ${route + 1} из ${ROUTES}</span></div>`;
+    };
+    body.onclick = e => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'home'){ closeScreen(); return; }
+      if (act === 'hear'){ if (steps[cur]) say(stepTxt(steps[cur])); return; }
+      const b = e.target.closest('[data-d]'); if (!b || cur >= steps.length) return;
+      const d = b.dataset.d, s = steps[cur];
+      if (d !== s.d){ buzz(); say('Посмотри на стрелку: ' + stepTxt(s)); return; }
+      pos = [pos[0] + DIRS[d][0], pos[1] + DIRS[d][1]]; trail.push(pos.join()); cnt++; tone(500 + cnt * 90, .1);
+      if (cnt < s.n){ draw(); say(String(cnt)); return; }
+      cur++; cnt = 0; draw();
+      if (cur < steps.length){ say(s.n + '! Теперь ' + stepTxt(steps[cur])); return; }
+      route++;
+      if (route < ROUTES){
+        chime(); say('Прилетели! Новый маршрут.');
+        timers.push(setTimeout(() => { gen(); draw(); say(stepTxt(steps[0])); }, 2000));
+      } else {
+        state.done.nav = true;
+        win(body, 'Курс проложен точно!');
+        addEnergy(1, 'навигация', 'Отличная навигация, капитан!');
+      }
+    };
+    gen(); draw(); say('Навигация! ' + stepTxt(steps[0]));
+    return () => timers.forEach(clearTimeout);
+  });
+}
+
+/* 4. Радиосвязь: артикуляционная разминка и позывной */
+const EXERCISES = [
+  {n:'Часики', p:'🕰️', t:'Открой рот. Острый язычок ходит вправо-влево, как стрелка часов.'},
+  {n:'Лопаточка', p:'🥄', t:'Положи широкий язычок на нижнюю губу и держи спокойно.'},
+  {n:'Иголочка', p:'📍', t:'Вытяни узкий острый язычок вперёд и держи.'},
+  {n:'Чашечка', p:'☕', t:'Сделай из язычка чашечку и подними её к верхним зубам.'},
+  {n:'Лошадка', p:'🐴', t:'Пощёлкай язычком, как лошадка цокает копытцами.'},
+  {n:'Грибок', p:'🍄', t:'Присоси язычок к нёбу и открывай рот пошире.'},
+  {n:'Вкусное варенье', p:'🍯', t:'Оближи верхнюю губу широким язычком сверху вниз.'},
+  {n:'Качели', p:'🎢', t:'Язычок вверх к носу, потом вниз к подбородку.'}
+];
+const CALLS = {
+  'Р':['РА — РО — РУ — РЫ', 'Ракета, ракушка, ворота, комар', 'Ракета «Искра» на связи! Курс на Марс!'],
+  'Л':['ЛА — ЛО — ЛУ — ЛЫ', 'Луна, лодка, пила, стол', 'Лунолёт летит к Луне! Приём!'],
+  'Ш':['ША — ШО — ШУ — ШИ', 'Шлем, шлюз, мышка, малыш', 'Шлем надет, шлюз открыт! Пошли на старт!'],
+  'С':['СА — СО — СУ — СЫ', 'Спутник, сок, коса, нос', 'Спутник на связи! Сигнал есть!'],
+  'Ж':['ЖА — ЖО — ЖУ — ЖИ', 'Жук, жираф, ёжик, ножик', 'Жёлтая звезда, жду сигнала!'],
+  'З':['ЗА — ЗО — ЗУ — ЗЫ', 'Звезда, зонт, коза, роза', 'Звездолёт на связи! Звёзды зовут!']
+};
+const LEVELS = ['Слоги', 'Слова', 'Фразы'];
+const hl = (text, ch) => esc(text).replace(new RegExp(ch, 'gi'), '<em>$&</em>');
+function openRadio(){
+  openScreen('Радиосвязь', body => {
+    const ex = [...EXERCISES].sort(() => Math.random() - .5).slice(0, 3), timers = [];
+    let i = 0, busy = false;
+    const drawEx = () => {
+      const x = ex[i];
+      body.innerHTML = `<p class="lead">Разминка пилота перед связью: упражнение ${i + 1} из 3. Делай перед зеркалом.</p>
+        <div class="exercise"><span class="pic">${x.p}</span><div><h3>${x.n}</h3><p class="lead">${x.t}</p></div></div>
+        <div class="count-dots">${'<span class="cd"></span>'.repeat(5)}</div>
+        <div class="row center"><button class="btn primary" data-act="go">Делаем вместе!</button><button class="btn" data-act="skip">Дальше</button></div>`;
+      say(x.n + '. ' + x.t);
+    };
+    const nextEx = () => { busy = false; i++; if (i < ex.length) drawEx(); else drawCall(); };
+    const count = () => {
+      busy = true; const dots = body.querySelectorAll('.cd'), words = ['Раз', 'Два', 'Три', 'Четыре', 'Пять']; let k = 0;
+      const step = () => {
+        if (k >= 5){ chime(); say('Молодец!'); timers.push(setTimeout(nextEx, 1400)); return; }
+        dots[k].classList.add('on'); tone(600 + k * 60, .08);
+        say(words[k], () => timers.push(setTimeout(step, 650))); k++;
+      };
+      step();
+    };
+    const drawCall = () => {
+      const c = CALLS[state.sound][state.level];
+      body.innerHTML = `<p class="lead">Позывной капитана. Скажи громко и чётко! Тренируем звук <b>[${state.sound}]</b>, этап «${LEVELS[state.level]}».</p>
+        <div class="callsign">${hl(c, state.sound)}</div>
+        <div class="row center"><button class="btn" data-act="sample">🔊 Послушать образец</button></div>
+        <div class="card"><div class="rg-label">Для ЦУП</div><p class="lead">Капитан сказал позывной? Оцените, как прозвучал звук.</p>
+          <div class="row"><button class="btn plasma" data-act="good">Чётко!</button><button class="btn" data-act="retry">Ещё разок</button></div></div>`;
+      say('Разминка закончена! Теперь скажи свой позывной.');
+    };
+    body.onclick = e => {
+      const act = e.target.closest('[data-act]')?.dataset.act; if (!act) return;
+      if (act === 'home') closeScreen();
+      if (act === 'go' && !busy) count();
+      if (act === 'skip'){ timers.forEach(clearTimeout); nextEx(); }
+      if (act === 'sample') say(CALLS[state.sound][state.level]);
+      if (act === 'retry') say('Ничего страшного! Медленно и чётко, ещё разок.');
+      if (act === 'good') requireParent(() => {
+        state.done.radio = true;
+        win(body, 'Связь чистая! Приём!');
+        addEnergy(1, `радиосвязь, звук [${state.sound}]`, 'Связь чистая! Приём!');
+      });
+    };
+    drawEx();
+    return () => timers.forEach(clearTimeout);
+  });
+}
+
+/* ЦУП: панель взрослых */
+function openCup(){
+  openScreen('Центр управления полётами', body => {
+    let preset = 0, resetArmed = false, resetT;
+    const chips = (items, cur, attr) => items.map((x, i) => `<button class="chip" data-${attr}="${i}" aria-pressed="${i === cur}">${x}</button>`).join('');
+    const sounds = Object.keys(CALLS);
+    const draw = () => {
+      body.innerHTML = `<p class="lead">ЦУП на связи ещё <b id="cupLeft"></b>. Здесь взрослые настраивают игру и отправляют поручения.</p>
+        <div class="card"><h3>Капитан</h3>
+          <label class="field" for="capInput">Имя капитана<input id="capInput" maxlength="20" placeholder="Например, Миша" value="${esc(state.name)}"></label>
+          <div class="field">Звук, над которым работаете с логопедом<div class="chips">${chips(sounds, sounds.indexOf(state.sound), 'snd')}</div></div>
+          <div class="field">Этап<div class="chips">${chips(LEVELS, state.level, 'lvl')}</div></div>
+          <p class="note">Звук и этап выбирайте вместе с логопедом. Берите только звук, который уже поставлен, иначе игра закрепит неправильное произношение.</p></div>
+        <div class="card"><h3>Радиограмма капитану</h3>
+          <p class="lead">Настоящее поручение. Капитан нажмёт «Выполнил!», вы подтвердите, и корабль получит энергию.</p>
+          <div class="chips">${chips(RADIO_PRESETS.map(r => r[0] + ' ' + r[1]), preset, 'rg')}</div>
+          <label class="field" for="rgInput">Или своё поручение<input id="rgInput" maxlength="60" placeholder="Например, покорми кота"></label>
+          <div class="row"><button class="btn primary" data-act="send">Отправить радиограмму</button>
+          <span class="lead">${state.radio ? 'Сейчас у капитана: «' + esc(state.radio.text) + '»' : 'Активных радиограмм нет.'}</span></div></div>
+        <div class="card"><h3>Бортовой журнал за сегодня</h3>
+          ${state.log.length ? `<ul class="log">${state.log.map(l => `<li><time>${l.t}</time><span>${esc(l.text)}</span></li>`).join('')}</ul>` : '<p class="lead">Сегодня записей пока нет.</p>'}</div>
+        <div class="card"><h3>Полёты и экранное время</h3>
+          <p class="lead">Полётов сегодня: ${state.flights}. Игровые миссии «Приказ» и «Навигация» доступны до первого полёта за день. Дела из «Проверки», радиограммы и «Радиосвязь» работают всегда.</p>
+          <div class="row"><button class="btn" data-act="extra">Разрешить ещё один полёт сегодня</button><button class="btn" data-act="lock">Выйти из режима ЦУП</button></div>
+          <div class="row"><button class="btn danger" data-act="reset">Начать игру заново</button></div></div>`;
+      tick();
+    };
+    const tick = () => {
+      const ms = parentUntil - Date.now(), el = $('#cupLeft');
+      if (ms <= 0){ closeScreen(); return; }
+      if (el) el.textContent = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+    };
+    const iv = setInterval(tick, 1000);
+    body.oninput = e => { if (e.target.id === 'capInput'){ state.name = e.target.value.trim(); save(); } };
+    body.onclick = e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.snd !== undefined){ state.sound = sounds[+t.dataset.snd]; save(); draw(); return; }
+      if (t.dataset.lvl !== undefined){ state.level = +t.dataset.lvl; save(); draw(); return; }
+      if (t.dataset.rg !== undefined){ preset = +t.dataset.rg; const v = $('#rgInput').value; draw(); $('#rgInput').value = v; return; }
+      const act = t.dataset.act;
+      if (act === 'send'){
+        const own = $('#rgInput').value.trim();
+        state.radio = own ? {pic:'📡', text:own, status:'new'} : {pic:RADIO_PRESETS[preset][0], text:RADIO_PRESETS[preset][1], status:'new'};
+        log('ЦУП отправил радиограмму: ' + state.radio.text); toast('Радиограмма отправлена'); draw();
+      }
+      if (act === 'extra'){ state.extra++; save(); toast('Ещё один полёт разрешён'); draw(); }
+      if (act === 'lock'){ parentUntil = 0; closeScreen(); }
+      if (act === 'reset'){
+        if (!resetArmed){ resetArmed = true; t.textContent = 'Точно? Весь прогресс сотрётся. Нажмите ещё раз'; resetT = setTimeout(() => { resetArmed = false; draw(); }, 4000); return; }
+        clearTimeout(resetT); state = fresh(); state.radio = null; save(); closeScreen(); toast('Игра начата заново');
+      }
+    };
+    draw();
+    return () => { clearInterval(iv); clearTimeout(resetT); };
+  });
+}
+
+/* полёт и посадка */
+function arrive(){
+  const p = PLANETS[state.planet % PLANETS.length];
+  state.energy = 0; state.planet++; state.flights++; state.medals.push(p.medal);
+  log(`Полёт на планету ${p.name}, медаль «${p.medal}»`);
+  openScreen('Посадка!', body => {
+    body.innerHTML = `<div class="arrival"><div class="big-planet" style="background:${planetBg(p)}"></div>
+      <h3>Планета ${p.name}</h3><p class="lead">${p.fact}</p>
+      <div class="medal big">🏅 Медаль «${p.medal}»</div>
+      ${gamesLocked() ? '<p class="lead">Корабль уходит на подзарядку до завтра. Дела из «Проверки» и радиограммы ЦУП можно выполнять и дальше: энергия пригодится для нового полёта.</p>' : ''}
+      <button class="btn primary" data-act="home">На мостик</button></div>`;
+    body.onclick = e => { if (e.target.closest('[data-act=home]')) closeScreen(); };
+    chime();
+    say(`Посадка на планету ${p.name}! ${capName()} получает медаль «${p.medal}». ${p.fact}`);
+  });
+}
+$('#flyBtn').onclick = () => {
+  if (gamesLocked() || state.energy < ENERGY_MAX) return;
+  const ship = $('#ship'), w = $('.window');
+  $('#flyBtn').hidden = true; ship.classList.add('flying'); w.classList.add('warp'); warp = 14;
+  [330, 392, 494, 587, 784].forEach((f, i) => setTimeout(() => tone(f, .28, 'triangle'), i * 230));
+  say('Три, два, один… Старт!');
+  setTimeout(() => { warp = 1; ship.classList.remove('flying'); w.classList.remove('warp'); arrive(); }, 2800);
+};
+
+/* события мостика */
+$('.console').addEventListener('click', e => {
+  const b = e.target.closest('.mission'); if (!b) return;
+  const m = b.dataset.mission; tone(660, .08);
+  if (LOCKABLE.includes(m) && gamesLocked()){
+    toast('Корабль на подзарядке. Миссия откроется завтра');
+    say('Корабль на подзарядке. Эта миссия откроется завтра. А дела из проверки и радиограммы можно выполнять!');
+    return;
+  }
+  ({check:openCheck, order:openOrder, nav:openNav, radio:openRadio})[m]();
+});
+$('#radiogram').addEventListener('click', e => {
+  const a = e.target.closest('[data-rg]')?.dataset.rg, r = state.radio; if (!a || !r) return;
+  if (a === 'listen') say('Радиограмма от ЦУП! ' + r.text);
+  if (a === 'done'){ r.status = 'wait'; save(); renderRadio(); say('Отлично, капитан! Ждём подтверждения ЦУП.'); }
+  if (a === 'confirm') requireParent(() => { log('Радиограмма выполнена: ' + r.text); state.radio = null; addEnergy(1, 'радиограмма', 'Спасибо, капитан! Радиограмма выполнена.'); });
+});
+$('#ship').onclick = () => {
+  const need = ENERGY_MAX - state.energy, h = new Date().getHours();
+  const hi = h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';
+  say(`${hi}, ${capName()}! ` + (need > 0 ? `Для полёта нужно ещё ${need} ${need === 1 ? 'ячейка' : need < 5 ? 'ячейки' : 'ячеек'} энергии. Выбирай миссию на пульте!` : gamesLocked() ? 'Энергия полная. Полетим завтра!' : 'Энергия полная! Жми «Летим»!'));
+};
+$('#soundBtn').onclick = () => { state.mute = !state.mute; save(); renderBridge(); if (state.mute){ try { speechSynthesis.cancel(); } catch(e){} } else say('Звук включён'); };
+$('#cupBtn').onclick = () => requireParent(openCup);
+addEventListener('resize', () => { sizeStars(); if (still) drawStars(); });
+setInterval(() => { if (state){ newDay(); $('#cupBtn').classList.toggle('live', isParent()); $('#cupBtn').textContent = isParent() ? 'ЦУП ✓' : 'ЦУП'; } }, 30000);
+
+function start(data){
+  state = (data && data.state) || load() || fresh();
+  newDay(); save(); sizeStars(); drawStars(); renderBridge();
+}
+window.claude?.hot?.snapshot?.(() => ({state}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
